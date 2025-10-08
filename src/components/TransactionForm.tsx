@@ -1,34 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { X, DollarSign, Calendar, Tag, TrendingUp, TrendingDown } from 'lucide-react';
-import { Transaction } from '../lib/supabase';
+import { Transaction, Category } from '../lib/supabase';
 
 interface TransactionFormProps {
   transaction?: Transaction | null;
-  onSubmit: (transaction: Omit<Transaction, 'id' | 'user_id' | 'created_at'>) => void;
+  categories: Category[];
+  onSubmit: (transaction: {
+    type: 'income' | 'expense';
+    amount: number;
+    category_id: string;
+    description: string;
+    date: string;
+  }) => void;
   onClose: () => void;
 }
 
-const categories = [
-  'Food & Dining',
-  'Shopping',
-  'Transportation',
-  'Bills & Utilities',
-  'Healthcare',
-  'Entertainment',
-  'Education',
-  'Travel',
-  'Salary',
-  'Freelance',
-  'Investment',
-  'Gift',
-  'Other'
-];
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit, onClose }) => {
+const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, categories, onSubmit, onClose }) => {
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
     amount: '',
-    category: '',
+    category_id: '',
+    description: '',
     date: new Date().toISOString().split('T')[0],
   });
 
@@ -37,7 +30,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
       setFormData({
         type: transaction.type,
         amount: transaction.amount.toString(),
-        category: transaction.category,
+        category_id: transaction.category_id,
+        description: transaction.description,
         date: transaction.date,
       });
     }
@@ -48,10 +42,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
     onSubmit({
       type: formData.type,
       amount: parseFloat(formData.amount),
-      category: formData.category,
+      category_id: formData.category_id,
+      description: formData.description,
       date: formData.date,
     });
   };
+
+  const filteredCategories = categories.filter(cat => cat.type === formData.type);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -132,21 +129,36 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
               <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <select
                 id="category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={formData.category_id}
+                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none"
                 required
               >
                 <option value="">Select a category</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
+                {filteredCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
+          {/* Description */}
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <input
+              id="description"
+              type="text"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Enter transaction description"
+              required
+            />
+          </div>
           {/* Date */}
           <div>
             <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
