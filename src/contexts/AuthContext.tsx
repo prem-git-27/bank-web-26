@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -60,8 +60,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
-        console.error('Error fetching user data:', error);
-        setUser(null);
+        // If user doesn't exist in our users table, create them
+        if (error.code === 'PGRST116') {
+          const { data: authUser } = await supabase.auth.getUser();
+          if (authUser.user) {
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: authUser.user.id,
+                first_name: authUser.user.user_metadata?.first_name || 'User',
+                last_name: authUser.user.user_metadata?.last_name || '',
+                email: authUser.user.email || '',
+              });
+            
+            if (!insertError) {
+              // Fetch the newly created user
+              const { data: newUser } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', userId)
+                .single();
+              setUser(newUser);
+            }
+          }
+        } else {
+          console.error('Error fetching user data:', error);
+          setUser(null);
+        }
       } else {
         setUser(data);
       }
@@ -73,11 +98,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          }
+        }
       });
 
       if (error) return { error };
@@ -88,9 +119,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('users')
           .insert({
             id: data.user.id,
-            name,
+            first_name: firstName,
+            last_name: lastName,
             email,
-            role: 'user',
           });
 
         if (profileError) {

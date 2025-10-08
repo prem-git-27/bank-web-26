@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Plus, TrendingUp, TrendingDown, DollarSign, Calendar, CreditCard as Edit, Trash2, Filter } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, Transaction } from '../lib/supabase';
+import { supabase, Transaction, Category } from '../lib/supabase';
 import TransactionForm from './TransactionForm';
 
 const UserDashboard: React.FC = () => {
   const { user, signOut } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -15,13 +16,22 @@ const UserDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchTransactions();
+    fetchCategories();
   }, []);
 
   const fetchTransactions = async () => {
     try {
       const { data, error } = await supabase
         .from('transactions')
-        .select('*')
+        .select(`
+          *,
+          categories (
+            name,
+            color,
+            icon
+          )
+        `)
+        .eq('user_id', user?.id)
         .order('date', { ascending: false });
 
       if (error) throw error;
@@ -33,7 +43,27 @@ const UserDashboard: React.FC = () => {
     }
   };
 
-  const handleTransactionSubmit = async (transactionData: Omit<Transaction, 'id' | 'user_id' | 'created_at'>) => {
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const handleTransactionSubmit = async (transactionData: {
+    type: 'income' | 'expense';
+    amount: number;
+    category_id: string;
+    description: string;
+    date: string;
+  }) => {
     try {
       if (editingTransaction) {
         const { error } = await supabase
@@ -109,7 +139,7 @@ const UserDashboard: React.FC = () => {
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Finance Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {user?.name}!</p>
+              <p className="text-gray-600">Welcome back, {user?.first_name} {user?.last_name}!</p>
             </div>
             <button
               onClick={signOut}
@@ -249,7 +279,7 @@ const UserDashboard: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {transaction.category}
+                        {transaction.categories?.name || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <span className={transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}>
@@ -287,6 +317,7 @@ const UserDashboard: React.FC = () => {
       {/* Transaction Form Modal */}
       {showForm && (
         <TransactionForm
+          categories={categories}
           transaction={editingTransaction}
           onSubmit={handleTransactionSubmit}
           onClose={() => {
