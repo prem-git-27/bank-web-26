@@ -9,53 +9,28 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Database types - Updated to match actual schema
+// Database types
 export interface User {
   id: string;
-  first_name: string;
-  last_name: string;
+  name: string;
   email: string;
+  role: 'user' | 'admin';
   created_at: string;
-  updated_at: string;
 }
 
 export interface Transaction {
   id: string;
   user_id: string;
-  category_id: string;
-  account_id?: string;
   type: 'income' | 'expense';
+  category: string;
   amount: number;
-  description: string;
   date: string;
   created_at: string;
-  updated_at: string;
 }
 
 export interface TransactionWithUser extends Transaction {
   users: {
-    first_name: string;
-    last_name: string;
+    name: string;
     email: string;
   };
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  color: string;
-  icon: string;
-  type: 'income' | 'expense';
-  created_at: string;
-}
-
-export interface Account {
-  id: string;
-  user_id: string;
-  name: string;
-  type: 'checking' | 'savings' | 'credit' | 'investment';
-  balance: number;
-  currency: string;
-  created_at: string;
-  updated_at: string;
 }

@@ -38,8 +38,7 @@ const AdminDashboard: React.FC = () => {
         .from('transactions')
         .select(`
           *,
-          users (first_name, last_name, email),
-          categories (name, color, icon)
+          users (name, email)
         `)
         .order('created_at', { ascending: false });
 
@@ -87,11 +86,10 @@ const AdminDashboard: React.FC = () => {
 
   const filteredTransactions = transactions.filter(transaction =>
     !userFilter || transaction.users?.email.toLowerCase().includes(userFilter.toLowerCase()) ||
-    transaction.users?.first_name.toLowerCase().includes(userFilter.toLowerCase()) ||
-    transaction.users?.last_name.toLowerCase().includes(userFilter.toLowerCase())
+    transaction.users?.name.toLowerCase().includes(userFilter.toLowerCase())
   );
 
-  const totalUsers = users.length;
+  const totalUsers = users.filter(u => u.role === 'user').length;
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
   const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
   const totalTransactions = transactions.length;
@@ -123,7 +121,7 @@ const AdminDashboard: React.FC = () => {
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {user?.first_name} {user?.last_name}!</p>
+              <p className="text-gray-600">Welcome back, {user?.name}!</p>
             </div>
             <button
               onClick={signOut}
@@ -218,7 +216,7 @@ const AdminDashboard: React.FC = () => {
                       }`}></div>
                       <div>
                         <p className="font-medium text-gray-900">{transaction.users?.name}</p>
-                        <p className="text-sm text-gray-500">{transaction.categories?.name || 'Unknown'}</p>
+                        <p className="text-sm text-gray-500">{transaction.category}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -247,9 +245,9 @@ const AdminDashboard: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">First Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -258,24 +256,32 @@ const AdminDashboard: React.FC = () => {
                   {users.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {user.first_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {user.last_name}
+                        {user.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          user.role === 'admin'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {user.role}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600 hover:text-red-900 transition-colors"
-                        >
-                          <UserX className="w-4 h-4" />
-                        </button>
+                        {user.role !== 'admin' && (
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-red-600 hover:text-red-900 transition-colors"
+                          >
+                            <UserX className="w-4 h-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -323,7 +329,7 @@ const AdminDashboard: React.FC = () => {
                       <tr key={transaction.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{transaction.users?.first_name} {transaction.users?.last_name}</div>
+                            <div className="text-sm font-medium text-gray-900">{transaction.users?.name}</div>
                             <div className="text-sm text-gray-500">{transaction.users?.email}</div>
                           </div>
                         </td>
@@ -340,7 +346,7 @@ const AdminDashboard: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {transaction.categories?.name || 'Unknown'}
+                          {transaction.category}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <span className={transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}>
